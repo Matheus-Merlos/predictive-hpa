@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "app.name" . }}-configmap
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+data:
+  PROMETHEUS_CONNECTION_STRING: {{ .Values.config.prometheusUrl | quote }}
+  PROMETHEUS_SECURE_CONNECTION: {{ .Values.config.prometheusSecure | default "false" | quote }}
+  DUCKDB_FILE_PATH: {{ .Values.config.duckdbPath | quote }}
+  REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE: {{ .Values.config.reactiveHpa.targetCpu | quote }}
+  REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE: {{ .Values.config.reactiveHpa.targetMem | quote }}
+  REACTIVE_TARGET_MIN_REPLICAS: {{ .Values.config.reactiveHpa.minReplicas | quote }}
+  REACTIVE_TARGET_MAX_REPLICAS: {{ .Values.config.reactiveHpa.maxReplicas | quote }}

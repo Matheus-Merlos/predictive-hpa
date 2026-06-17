@@ -1,0 +1,5 @@
+apiVersion: v2
+name: predictive-hpa
+description: Chart for installing a predictive-hpa instance to your cluster
+type: application
+version: 0.0.1

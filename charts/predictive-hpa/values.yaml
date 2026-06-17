@@ -1,0 +1,81 @@
+# Valores de configuração padrão para o chart predictive-hpa.
+# Este arquivo define o comportamento do banco de dados, da IA preditiva e as regras de fallback reativo.
+
+# Sobrescreve o nome base da aplicação gerado pelo Helm.
+nameOverride: ""
+
+# Configurações da Imagem do Container.
+image:
+  registry: ghcr.io/Matheus-Merlos
+  repository: predictive-hpa
+  # A tag da imagem. Geralmente mapeada para a versão do release do GitHub.
+  tag: v0.0.0
+  pullPolicy: IfNotPresent
+
+# Configurações da Aplicação Python (Injetadas via ConfigMap e EnvVars)
+config:
+  # URL de conexão com a API do Prometheus.
+  # Exemplo intra-cluster: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
+  prometheusUrl: ""
+  # Defina como "true" caso o Prometheus exija validação estrita de certificados SSL/TLS.
+  prometheusSecure: "false"
+  # Caminho interno do container onde o banco histórico será mantido.
+  duckdbPath: "/var/lib/predictive-hpa/duckdb/duckdb.db"
+  
+  # Limiares de Escalonamento (Thresholds).
+  # Estes valores imitam o HorizontalPodAutoscaler nativo do Kubernetes.
+  reactiveHpa:
+    # Alvo de uso da CPU em formato decimal (ex: 0.40 para 40% do "resources.requests").
+    # Deixe como null caso não queira escalar com base em CPU.
+    targetCpu: null
+    # Alvo de uso de Memória em formato decimal (ex: 0.80 para 80% do "resources.requests").
+    # Deixe como null caso não queira escalar com base em memória.
+    targetMem: null
+    # Piso absoluto: o controlador nunca reduzirá abaixo deste número de réplicas.
+    minReplicas: 1
+    # Teto absoluto: o controlador nunca escalará acima deste número de réplicas, mesmo se a IA sugerir.
+    maxReplicas: 2
+
+# Limites e requisições computacionais do próprio Pod do Controlador.
+# O XGBoost pode ser intensivo em CPU durante o treinamento noturno.
+resources:
+  requests:
+    cpu: 500m
+    memory: 500Mi
+  limits:
+    cpu: '1'
+    memory: 1Gi
+
+# Configurações do Persistent Volume (PV).
+# Altamente recomendado manter 'enabled: true' em produção para que a IA não perca 
+# o histórico utilizada no treinamento caso o Pod do controlador seja reiniciado.
+persistence:
+  enabled: false
+  # Especifique a classe de armazenamento (ex: "standard", "gp2"). Deixe vazio para usar a padrão do cluster.
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  mountPath: /var/lib/predictive-hpa/duckdb/
+  # Se você já criou um PVC manualmente, insira o nome dele aqui para o Chart utilizá-lo.
+  existingClaim: ""
+
+# Contexto de segurança para restringir privilégios do container.
+# Executar como usuário não-root (ID 1000) é uma forte recomendação de segurança SRE.
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# Regras de agendamento (Scheduling)
+# Use affinity para garantir que o Pod rode junto (ou separado) de outros serviços.
+affinity: {}
+# Restringe o Pod a rodar apenas em nodes com labels específicas (ex: nodes de infraestrutura).
+nodeSelector: {}
+
+# Configurações da Identidade do Pod no Cluster (RBAC)
+serviceaccount:
+  # Sobrescreve o nome da ServiceAccount. Se vazio, um nome será gerado automaticamente.
+  nameOverride: ""
+  # Anotações adicionais para a ServiceAccount (útil para IAM Roles for Service Accounts na AWS/EKS).
+  annotations: {}
