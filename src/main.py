@@ -90,9 +90,10 @@ def shadow_mode_controller():
             current_state = transformed_df.tail(1)
 
             total_cpu = current_state['cpu_usage'].values[0]
+            total_mem = current_state['mem_usage'].values[0]
             current_replicas = current_state['replicas'].values[0]
 
-            reative_replicas = calculate_reactive_hpa(total_cpu, current_replicas)
+            reative_replicas = calculate_reactive_hpa(total_cpu, total_mem, current_replicas)
             days_history = data.get_days_count()
 
             if days_history < 7:
