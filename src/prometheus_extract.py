@@ -63,6 +63,60 @@ def extract_dataset():
         df = df.rename(columns={'value': column_name})
         dataframes.append(df)
 
+    if not dataframes:
+        return DataFrame()
+
+    final_df = dataframes[0]
+    for df in dataframes[1:]:
+        final_df = pd.merge(final_df, df, on='timestamp', how='outer')
+
+    final_df = final_df.sort_values('timestamp').reset_index(drop=True)
+    final_df = final_df.ffill()
+    final_df = final_df.dropna()
+
+    return final_df
+
+def extract_recent_window(minutes: int = 20) -> DataFrame:
+    config = Config()
+    prometheus_connection = PrometheusConnect(url=config.prometheus_url, disable_ssl=(not config.prometheus_secure_connection))
+
+    end_time: datetime = parse_datetime('now')
+    start_time = end_time - timedelta(minutes=minutes)
+    step = "1m"
+
+    namespace="production"
+    app_name="production-green-lms"
+
+    queries = {
+        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{app_name}.*"}}[5m]))', 
+        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{app_name}.*"}})',
+        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service=~".*{app_name}.*"}}[5m]))',
+        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment=~".*{app_name}.*"}}'
+    }
+
+    dataframes: list[DataFrame] = []
+
+    for column_name, query in queries.items():
+        result = prometheus_connection.custom_query_range(
+            query=query,
+            start_time=start_time,
+            end_time=end_time,
+            step=step
+        )
+
+        if result:
+            df_metric = MetricRangeDataFrame(result)
+            df_metric = df_metric.reset_index()
+            df_metric = df_metric[['timestamp', 'value']]
+            df_metric['value'] = pd.to_numeric(df_metric['value'])
+            df_metric['timestamp'] = df_metric['timestamp'].dt.floor('s')
+            df_metric = df_metric.drop_duplicates(subset=['timestamp'])
+            df_metric = df_metric.rename(columns={'value': column_name})
+            dataframes.append(df_metric)
+
+    if not dataframes:
+        return DataFrame()
+
     final_df = dataframes[0]
     for df in dataframes[1:]:
         final_df = pd.merge(final_df, df, on='timestamp', how='outer')
@@ -74,4 +128,4 @@ def extract_dataset():
     return final_df
 
 if __name__ == "__main__":
-    extract_dataset()
+    print(extract_recent_window())
