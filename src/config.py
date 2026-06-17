@@ -1,7 +1,8 @@
 import os
+import dotenv
 
 class Config:
-    _instance: Config | None  = None
+    _instance = None
     _initialized: bool = False
 
     def __new__(cls) -> "Config":
@@ -11,6 +12,7 @@ class Config:
         return cls._instance
 
     def __init__(self) -> None:
+        dotenv.load_dotenv('.env')
         if not hasattr(self, '_initialized'):
             self._initialized = True
 
