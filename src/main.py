@@ -12,11 +12,28 @@ from predictor import train_model
 
 DB_FILE = "/var/lib/predictive-hpa/duckdb.db"
 REACTIVE_TARGET_CPU_UTILIZATION = 0.40
+REACTIVE_TARGET_MEMORY_UTILIZATION_GB = 0.50
+REACTIVE_TARGET_MAX_REPLICAS = 8
+REACTIVE_TARGET_MIN_REPLICAS = 4
 
+def calculate_reactive_hpa(cpu_usage_total, mem_usage_total, current_replicas):
+    current_replicas_safe = max(current_replicas, 1)
+    replicas_from_cpu = 0
+    replicas_from_mem = 0
 
-def calculate_reactive_hpa(cpu_usage_total, current_replicas):
-    cpu_per_pod = cpu_usage_total / max(current_replicas, 1)
-    desired_replicas = math.ceil(current_replicas * (cpu_per_pod / REACTIVE_TARGET_CPU_UTILIZATION))
+    if REACTIVE_TARGET_CPU_UTILIZATION is not None:
+        cpu_per_pod = cpu_usage_total / current_replicas_safe
+        replicas_from_cpu = math.ceil(current_replicas_safe * (cpu_per_pod / REACTIVE_TARGET_CPU_UTILIZATION))
+
+    if REACTIVE_TARGET_MEMORY_UTILIZATION_GB is not None:
+        mem_per_pod = mem_usage_total / current_replicas_safe
+        replicas_from_mem = math.ceil(current_replicas_safe * (mem_per_pod / REACTIVE_TARGET_MEMORY_UTILIZATION_GB))
+
+    desired_replicas = max(replicas_from_cpu, replicas_from_mem)
+
+    desired_replicas = max(REACTIVE_TARGET_MIN_REPLICAS, desired_replicas)
+    desired_replicas = min(REACTIVE_TARGET_MAX_REPLICAS, desired_replicas)
+
     return desired_replicas
 
 def shadow_mode_controller():
