@@ -71,7 +71,7 @@ def extract_dataset():
     final_df = final_df.ffill()
     final_df = final_df.dropna()
 
-    print(final_df)
+    return final_df
 
 if __name__ == "__main__":
     extract_dataset()
