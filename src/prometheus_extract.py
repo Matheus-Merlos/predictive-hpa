@@ -45,12 +45,13 @@ def extract_dataset():
 
     namespace="production"
     app_name="production-green-lms"
+    service_name="boompe-production-green-lms-service"
 
     queries = {
-        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{app_name}.*"}}[5m]))', 
-        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{app_name}.*"}})',
-        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service=~".*{app_name}.*"}}[5m]))',
-        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment=~".*{app_name}.*"}}'
+        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+"}}[5m]))', 
+        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+"}})',
+        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service=~"{service_name}"}}[5m]))',
+        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment=~"{app_name}"}}'
     }
 
     dataframes: list[DataFrame] = []
@@ -86,12 +87,13 @@ def extract_recent_window(minutes: int = 20) -> DataFrame:
 
     namespace="production"
     app_name="production-green-lms"
+    service_name="boompe-production-green-lms-service"
 
     queries = {
-        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{app_name}.*"}}[5m]))', 
-        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{app_name}.*"}})',
-        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service=~".*{app_name}.*"}}[5m]))',
-        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment=~".*{app_name}.*"}}'
+        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+"}}[5m]))', 
+        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+"}})',
+        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service=~"{service_name}"}}[5m]))',
+        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment=~"{app_name}"}}'
     }
 
     dataframes: list[DataFrame] = []
@@ -126,3 +128,28 @@ def extract_recent_window(minutes: int = 20) -> DataFrame:
     final_df = final_df.dropna()
 
     return final_df
+
+def get_pod_resource_requests() -> tuple[float, float]:
+    config = Config()
+    prometheus_connection = PrometheusConnect(url=config.prometheus_url, disable_ssl=(not config.prometheus_secure_connection))
+
+    namespace = "production"
+    app_name = "production-green-lms"
+
+    query_cpu = f'max(kube_pod_container_resource_requests{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+", resource="cpu"}})'
+    query_mem = f'max(kube_pod_container_resource_requests{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+", resource="memory"}})'
+
+    try:
+        res_cpu = prometheus_connection.custom_query(query_cpu)
+        cpu_cores = float(res_cpu[0]['value'][1])
+    except (IndexError, ValueError, KeyError):
+        cpu_cores = 1.0
+
+    try:
+        res_mem = prometheus_connection.custom_query(query_mem)
+        mem_bytes = float(res_mem[0]['value'][1])
+        mem_gb = mem_bytes / (1024 ** 3)
+    except (IndexError, ValueError, KeyError):
+        mem_gb = 2.0
+
+    return cpu_cores, mem_gb

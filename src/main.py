@@ -6,31 +6,32 @@ import time
 import math
 
 from database import DuckDBConnection
-from prometheus_extract import extract_dataset, extract_recent_window
+from prometheus_extract import extract_dataset, extract_recent_window, get_pod_resource_requests
 from feature_engineering import transform_dataframe
 from predictor import train_model
 
 DB_FILE = "/var/lib/predictive-hpa/duckdb.db"
-REACTIVE_TARGET_CPU_UTILIZATION = 0.40
-REACTIVE_TARGET_MEMORY_UTILIZATION_GB = 0.50
+REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE = 0.40
+REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE = 1
 REACTIVE_TARGET_MAX_REPLICAS = 8
 REACTIVE_TARGET_MIN_REPLICAS = 4
 
-def calculate_reactive_hpa(cpu_usage_total, mem_usage_total, current_replicas):
+def calculate_reactive_hpa(cpu_usage_total, mem_usage_total, current_replicas, pod_cpu_req, pod_mem_req):
     current_replicas_safe = max(current_replicas, 1)
     replicas_from_cpu = 0
     replicas_from_mem = 0
 
-    if REACTIVE_TARGET_CPU_UTILIZATION is not None:
+    if REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE is not None:
         cpu_per_pod = cpu_usage_total / current_replicas_safe
-        replicas_from_cpu = math.ceil(current_replicas_safe * (cpu_per_pod / REACTIVE_TARGET_CPU_UTILIZATION))
+        desired_cpu_value = pod_cpu_req * REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE
+        replicas_from_cpu = math.ceil(current_replicas_safe * (cpu_per_pod / desired_cpu_value))
 
-    if REACTIVE_TARGET_MEMORY_UTILIZATION_GB is not None:
+    if REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE is not None:
         mem_per_pod = mem_usage_total / current_replicas_safe
-        replicas_from_mem = math.ceil(current_replicas_safe * (mem_per_pod / REACTIVE_TARGET_MEMORY_UTILIZATION_GB))
+        desired_mem_value = pod_mem_req * REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE
+        replicas_from_mem = math.ceil(current_replicas_safe * (mem_per_pod / desired_mem_value))
 
     desired_replicas = max(replicas_from_cpu, replicas_from_mem)
-
     desired_replicas = max(REACTIVE_TARGET_MIN_REPLICAS, desired_replicas)
     desired_replicas = min(REACTIVE_TARGET_MAX_REPLICAS, desired_replicas)
 
@@ -38,6 +39,11 @@ def calculate_reactive_hpa(cpu_usage_total, mem_usage_total, current_replicas):
 
 def shadow_mode_controller():
     logger.info('Initializing Predictive-HPA Shadow Mode Controller...')
+
+    logger.info('Fetching Pod Resource limits from Prometheus...')
+    pod_cpu_req, pod_mem_req = get_pod_resource_requests()
+    logger.info(f'Pod Capacity locked at: CPU={pod_cpu_req} Cores, Mem={pod_mem_req:.2f} GB')
+
     with DuckDBConnection(DB_FILE) as data:
         logger.info('Gathering all available data on prometheus...')
         history_df = extract_dataset()
@@ -90,16 +96,16 @@ def shadow_mode_controller():
             current_state = transformed_df.tail(1)
 
             total_cpu = current_state['cpu_usage'].values[0]
-            total_mem = current_state['mem_usage'].values[0]
+            total_mem = current_state['mem_usage'].values[0] / (1024 ** 3)
             current_replicas = current_state['replicas'].values[0]
 
-            reative_replicas = calculate_reactive_hpa(total_cpu, total_mem, current_replicas)
+            reative_replicas = calculate_reactive_hpa(total_cpu, total_mem, current_replicas, pod_cpu_req, pod_mem_req)
             days_history = data.get_days_count()
 
             if days_history < 7:
                 final_replica_count = reative_replicas
                 engine = "REACTIVE"
-                logger.info(f'[WARMUP {days_history}/7d] Metrics: CPU={total_cpu:.2f} | Current Replicas={current_replicas}')
+                logger.info(f'[WARMUP {days_history}/7d] Metrics: CPU={total_cpu:.2f} | Mem: {total_mem:.2f}GB | Current Replicas={current_replicas}')
             else:
                 current_X = current_state[['cpu_usage', 'mem_usage', 'rps', 'hour', 'day_week', 'cpu_lag_15m', 'rps_lag_15m', 'cpu_per_request', 'mem_per_request']]
                 xgboost_predict = model.predict(current_X)
