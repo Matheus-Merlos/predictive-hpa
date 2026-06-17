@@ -1,6 +1,5 @@
 import pandas as pd
 from pandas import DataFrame
-from prometheus_extract import extract_dataset
 
 def transform_dataframe(raw_df: DataFrame) -> DataFrame:
     df = raw_df.copy()
