@@ -1,9 +1,6 @@
 from pandas import DataFrame
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error
-from feature_engineering import transform_dataframe
-from prometheus_extract import extract_dataset
 
 def train_model(full_df: DataFrame) -> DataFrame:
     X = full_df[['cpu_usage', 'mem_usage', 'rps', 'hour', 'day_week', 'cpu_lag_15m', 'rps_lag_15m', 'cpu_per_request', 'mem_per_request']]
@@ -20,14 +17,5 @@ def train_model(full_df: DataFrame) -> DataFrame:
 
     model.fit(X_benchmark, y_benchmark)
 
-    predictions = model.predict(X_test)
-
-    mean_error = mean_absolute_error(y_test, predictions)
-    print(f"Erro Médio Absoluto: {mean_error:.2f} réplicas de diferença do HPA real.")
-
     return model
 
-if __name__ == "__main__":
-    df_pronto = transform_dataframe(extract_dataset())
-    
-    train_model(df_pronto)

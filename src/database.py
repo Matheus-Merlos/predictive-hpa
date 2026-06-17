@@ -2,8 +2,7 @@ import logging as logger
 import duckdb
 import pandas as pd
 from pandas import DataFrame
-
-DB_FILE = "/var/lib/predictive-hpa/duckdb.db"
+from pathlib import Path
 
 class DuckDBConnection:
     def __init__(self, database_path: str) -> None:
@@ -12,6 +11,9 @@ class DuckDBConnection:
 
 
     def __enter__(self):
+        path = Path(self.__database_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
         self.__connection = duckdb.connect(self.__database_path)
         self.__connection.execute(
             """
@@ -50,5 +52,5 @@ class DuckDBConnection:
 
 
     def get_all_historical_data(self) -> DataFrame:
-        df = self.__connection.execute("SELECT * FROM metrics_history ORDER BY timestamp AS").df()
+        df = self.__connection.execute("SELECT * FROM metrics_history ORDER BY timestamp ASC").df()
         return df

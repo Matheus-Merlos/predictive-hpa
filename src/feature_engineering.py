@@ -19,6 +19,3 @@ def transform_dataframe(raw_df: DataFrame) -> DataFrame:
     df = df.dropna()
     
     return df
-
-if __name__ == "__main__":
-    print(transform_dataframe(extract_dataset()))

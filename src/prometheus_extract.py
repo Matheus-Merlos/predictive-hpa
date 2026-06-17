@@ -126,6 +126,3 @@ def extract_recent_window(minutes: int = 20) -> DataFrame:
     final_df = final_df.dropna()
 
     return final_df
-
-if __name__ == "__main__":
-    print(extract_recent_window())
