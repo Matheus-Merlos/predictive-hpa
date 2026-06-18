@@ -35,7 +35,7 @@ def search_timeseries_chunked(prometheus_connection: PrometheusConnect, query: s
     df_final_metric = pd.concat(df_list, ignore_index=True)
     return df_final_metric
 
-def extract_dataset():
+def extract_dataset(namespace: str, deployment_name: str, service_name: str):
     config = Config()
     prometheus_connection = PrometheusConnect(url=config.prometheus_url, disable_ssl=(not config.prometheus_secure_connection))
 
@@ -43,15 +43,11 @@ def extract_dataset():
     start_time = end_time - timedelta(days=30)
     step = "1m"
 
-    namespace="production"
-    app_name="production-green-lms"
-    service_name="boompe-production-green-lms-service"
-
     queries = {
-        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+"}}[5m]))', 
-        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+"}})',
-        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service=~"{service_name}"}}[5m]))',
-        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment=~"{app_name}"}}'
+        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+"}}[5m]))', 
+        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+"}})',
+        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service="{service_name}"}}[5m]))',
+        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment="{deployment_name}"}}'
     }
 
     dataframes: list[DataFrame] = []
@@ -77,7 +73,7 @@ def extract_dataset():
 
     return final_df
 
-def extract_recent_window(minutes: int = 20) -> DataFrame:
+def extract_recent_window(namespace: str, deployment_name: str, service_name: str, minutes: int = 20) -> DataFrame:
     config = Config()
     prometheus_connection = PrometheusConnect(url=config.prometheus_url, disable_ssl=(not config.prometheus_secure_connection))
 
@@ -85,15 +81,11 @@ def extract_recent_window(minutes: int = 20) -> DataFrame:
     start_time = end_time - timedelta(minutes=minutes)
     step = "1m"
 
-    namespace="production"
-    app_name="production-green-lms"
-    service_name="boompe-production-green-lms-service"
-
     queries = {
-        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+"}}[5m]))', 
-        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+"}})',
-        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service=~"{service_name}"}}[5m]))',
-        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment=~"{app_name}"}}'
+        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+"}}[5m]))', 
+        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+"}})',
+        'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service="{service_name}"}}[5m]))',
+        'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment="{deployment_name}"}}'
     }
 
     dataframes: list[DataFrame] = []
@@ -129,15 +121,12 @@ def extract_recent_window(minutes: int = 20) -> DataFrame:
 
     return final_df
 
-def get_pod_resource_requests() -> tuple[float, float]:
+def get_pod_resource_requests(namespace: str, deployment_name: str) -> tuple[float, float]:
     config = Config()
     prometheus_connection = PrometheusConnect(url=config.prometheus_url, disable_ssl=(not config.prometheus_secure_connection))
 
-    namespace = "production"
-    app_name = "production-green-lms"
-
-    query_cpu = f'max(kube_pod_container_resource_requests{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+", resource="cpu"}})'
-    query_mem = f'max(kube_pod_container_resource_requests{{namespace="{namespace}", pod=~"{app_name}-[a-z0-9]+-[a-z0-9]+", resource="memory"}})'
+    query_cpu = f'max(kube_pod_container_resource_requests{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+", resource="cpu"}})'
+    query_mem = f'max(kube_pod_container_resource_requests{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+", resource="memory"}})'
 
     try:
         res_cpu = prometheus_connection.custom_query(query_cpu)

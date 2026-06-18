@@ -9,6 +9,8 @@ from database import DuckDBConnection
 from prometheus_extract import extract_dataset, extract_recent_window, get_pod_resource_requests
 from feature_engineering import transform_dataframe
 from predictor import train_model
+from resource_discovery import discover_resources_by_labels
+from config import Config
 
 DB_FILE = "/var/lib/predictive-hpa/duckdb.db"
 REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE = 0.40
@@ -39,14 +41,18 @@ def calculate_reactive_hpa(cpu_usage_total, mem_usage_total, current_replicas, p
 
 def shadow_mode_controller():
     logger.info('Initializing Predictive-HPA Shadow Mode Controller...')
+    cfg = Config()
+
+    logger.info('Fetching kubernetes deployment and service...')
+    service_name, deployment_name = discover_resources_by_labels()
 
     logger.info('Fetching Pod Resource limits from Prometheus...')
-    pod_cpu_req, pod_mem_req = get_pod_resource_requests()
+    pod_cpu_req, pod_mem_req = get_pod_resource_requests(cfg.namespace, deployment_name)
     logger.info(f'Pod Capacity locked at: CPU={pod_cpu_req} Cores, Mem={pod_mem_req:.2f} GB')
 
     with DuckDBConnection(DB_FILE) as data:
         logger.info('Gathering all available data on prometheus...')
-        history_df = extract_dataset()
+        history_df = extract_dataset(cfg.namespace, deployment_name, service_name)
 
         if not history_df.empty:
             data.append_metric(history_df)
@@ -78,7 +84,7 @@ def shadow_mode_controller():
             elif now.hour != 3:
                 trained_today = False
 
-            time_window_df = extract_recent_window(minutes=20)
+            time_window_df = extract_recent_window(cfg.namespace, deployment_name, service_name, minutes=20)
             if time_window_df.empty:
                 logger.warning(f'Error getting data. Skipping Cycle.')
                 time.sleep(60)

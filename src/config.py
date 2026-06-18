@@ -23,4 +23,12 @@ class Config:
             raise ValueError('PROMETHEUS_CONNECTION_STRING value is invalid.')
         
         self.prometheus_secure_connection: bool = True if prometheus_secure_connection_raw == "true" else False
+
+        #for kubernetes discovery
+        self.namespace = os.getenv('NAMESPACE')
+        if not self.namespace:
+            raise ValueError('NAMESPACE env var is invalid.')
         
+        self.label_str = os.getenv('SELECTOR_LABELS')
+        if not self.label_str:
+            raise ValueError('SELECTOR_LABELS env var is invalid.')

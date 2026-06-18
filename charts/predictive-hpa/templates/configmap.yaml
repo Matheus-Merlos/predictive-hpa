@@ -17,4 +17,5 @@ data:
     {{ $formattedPair := printf "%s=%s" $key $value }}
     {{ $selectorList = append $selectorList $formattedPair }}
   {{ end }}
-  SELECTOR_LABELS: {{ join ", " $selectorList | quote }}
+  SELECTOR_LABELS: {{ join "," $selectorList | quote }}
+  NAMESPACE: {{ .Release.Namespace }}
