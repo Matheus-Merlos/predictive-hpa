@@ -34,8 +34,11 @@ class Config:
             raise ValueError('SELECTOR_LABELS env var is invalid.')
         
         #for reactive hpa
-        self.reactive_hpa_target_cpu_utilization_percentage = os.getenv('REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE', None)
-        self.reactive_hpa_target_mem_utilization_percentage = os.getenv('REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE', None)
+        raw_cpu = os.getenv('REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE')
+        self.reactive_hpa_target_cpu_utilization_percentage = float(raw_cpu) if raw_cpu not in [None, '', 'null', 'None'] else None
+        
+        raw_mem = os.getenv('REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE')
+        self.reactive_hpa_target_mem_utilization_percentage = float(raw_mem) if raw_mem not in [None, '', 'null', 'None'] else None
         try:
             self.reactive_hpa_min_replicas = int(os.getenv('REACTIVE_TARGET_MIN_REPLICAS'))
         except TypeError:
