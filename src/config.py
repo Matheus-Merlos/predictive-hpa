@@ -32,3 +32,21 @@ class Config:
         self.label_str = os.getenv('SELECTOR_LABELS')
         if not self.label_str:
             raise ValueError('SELECTOR_LABELS env var is invalid.')
+        
+        #for reactive hpa
+        self.reactive_hpa_target_cpu_utilization_percentage = os.getenv('REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE', None)
+        self.reactive_hpa_target_mem_utilization_percentage = os.getenv('REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE', None)
+        try:
+            self.reactive_hpa_min_replicas = int(os.getenv('REACTIVE_TARGET_MIN_REPLICAS'))
+        except TypeError:
+            raise ValueError('REACTIVE_TARGET_MIN_REPLICAS env var is invalid.')
+        
+        try:
+            self.reactive_hpa_max_replicas = int(os.getenv('REACTIVE_TARGET_MAX_REPLICAS'))
+        except TypeError:
+            raise ValueError('REACTIVE_TARGET_MAX_REPLICAS env var is invalid.')
+        
+        #for duckdb
+        self.duckdb_file_path = os.getenv('DUCKDB_FILE_PATH')
+        if not self.duckdb_file_path:
+            raise ValueError('DUCKDB_FILE_PATH env var is invalid.')

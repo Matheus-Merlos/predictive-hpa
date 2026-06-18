@@ -12,36 +12,31 @@ from predictor import train_model
 from resource_discovery import discover_resources_by_labels
 from config import Config
 
-DB_FILE = "/var/lib/predictive-hpa/duckdb.db"
-REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE = 0.40
-REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE = 1
-REACTIVE_TARGET_MAX_REPLICAS = 8
-REACTIVE_TARGET_MIN_REPLICAS = 4
+cfg = Config()
 
 def calculate_reactive_hpa(cpu_usage_total, mem_usage_total, current_replicas, pod_cpu_req, pod_mem_req):
     current_replicas_safe = max(current_replicas, 1)
     replicas_from_cpu = 0
     replicas_from_mem = 0
 
-    if REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE is not None:
+    if cfg.reactive_hpa_target_cpu_utilization_percentage is not None:
         cpu_per_pod = cpu_usage_total / current_replicas_safe
-        desired_cpu_value = pod_cpu_req * REACTIVE_TARGET_CPU_UTILIZATION_PERCENTAGE
+        desired_cpu_value = pod_cpu_req * float(cfg.reactive_hpa_target_cpu_utilization_percentage)
         replicas_from_cpu = math.ceil(current_replicas_safe * (cpu_per_pod / desired_cpu_value))
 
-    if REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE is not None:
+    if cfg.reactive_hpa_target_mem_utilization_percentage is not None:
         mem_per_pod = mem_usage_total / current_replicas_safe
-        desired_mem_value = pod_mem_req * REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE
+        desired_mem_value = pod_mem_req * float(cfg.reactive_hpa_target_mem_utilization_percentage)
         replicas_from_mem = math.ceil(current_replicas_safe * (mem_per_pod / desired_mem_value))
 
     desired_replicas = max(replicas_from_cpu, replicas_from_mem)
-    desired_replicas = max(REACTIVE_TARGET_MIN_REPLICAS, desired_replicas)
-    desired_replicas = min(REACTIVE_TARGET_MAX_REPLICAS, desired_replicas)
+    desired_replicas = max(cfg.reactive_hpa_min_replicas, desired_replicas)
+    desired_replicas = min(cfg.reactive_hpa_max_replicas, desired_replicas)
 
     return desired_replicas
 
 def shadow_mode_controller():
     logger.info('Initializing Predictive-HPA Shadow Mode Controller...')
-    cfg = Config()
 
     logger.info('Fetching kubernetes deployment and service...')
     service_name, deployment_name = discover_resources_by_labels()
@@ -50,7 +45,7 @@ def shadow_mode_controller():
     pod_cpu_req, pod_mem_req = get_pod_resource_requests(cfg.namespace, deployment_name)
     logger.info(f'Pod Capacity locked at: CPU={pod_cpu_req} Cores, Mem={pod_mem_req:.2f} GB')
 
-    with DuckDBConnection(DB_FILE) as data:
+    with DuckDBConnection(cfg.duckdb_file_path) as data:
         logger.info('Gathering all available data on prometheus...')
         history_df = extract_dataset(cfg.namespace, deployment_name, service_name)
 
