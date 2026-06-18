@@ -35,6 +35,8 @@ config:
     minReplicas: 1
     # Teto absoluto: o controlador nunca escalará acima deste número de réplicas, mesmo se a IA sugerir.
     maxReplicas: 2
+  # Os labels que seus pods, service e deployment devem ter para realizar o discovery
+  selectorLabels: {}
 
 # Limites e requisições computacionais do próprio Pod do Controlador.
 # O XGBoost pode ser intensivo em CPU durante o treinamento noturno.

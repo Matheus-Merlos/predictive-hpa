@@ -12,3 +12,9 @@ data:
   REACTIVE_TARGET_MEMORY_UTILIZATION_PERCENTAGE: {{ .Values.config.reactiveHpa.targetMem | quote }}
   REACTIVE_TARGET_MIN_REPLICAS: {{ .Values.config.reactiveHpa.minReplicas | quote }}
   REACTIVE_TARGET_MAX_REPLICAS: {{ .Values.config.reactiveHpa.maxReplicas | quote }}
+  {{ $selectorList := list }}
+  {{ range $key, $value := .Values.config.selectorLabels }}
+    {{ $formattedPair := printf "%s=%s" $key $value }}
+    {{ $selectorList = append $selectorList $formattedPair }}
+  {{ end }}
+  SELECTOR_LABELS: {{ join ", " $selectorList | quote }}
