@@ -36,7 +36,7 @@ spec:
       volumes:
         - name: duckdb
           persistentVolumeClaim:
-            claimName: {{ ternary .Values.persistence.existingClaim (printf "%s-pvc" (include "app.name" .)) .Values.persistence.existingClaim | quote }}
+            claimName: {{ default (printf "%s-pvc" (include "app.name" .)) .Values.persistence.existingClaim | quote }}
       {{- end }}
 
       containers:
