@@ -6,7 +6,7 @@ nameOverride: ""
 
 # Configurações da Imagem do Container.
 image:
-  registry: ghcr.io/Matheus-Merlos
+  registry: ghcr.io/matheus-merlos
   repository: predictive-hpa
   # A tag da imagem. Geralmente mapeada para a versão do release do GitHub.
   tag: v0.0.0
