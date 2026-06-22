@@ -44,8 +44,8 @@ def extract_dataset(namespace: str, deployment_name: str, service_name: str):
     step = "1m"
 
     queries = {
-        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+"}}[5m]))', 
-        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+"}})',
+        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+", container!="", container!="POD"}}[5m]))',
+        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+", container!="", container!="POD"}})',
         'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service="{service_name}"}}[5m]))',
         'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment="{deployment_name}"}}'
     }
@@ -82,8 +82,8 @@ def extract_recent_window(namespace: str, deployment_name: str, service_name: st
     step = "1m"
 
     queries = {
-        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+"}}[5m]))', 
-        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+"}})',
+        'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+", container!="", container!="POD"}}[5m]))',
+        'mem_usage': f'sum(container_memory_working_set_bytes{{namespace="{namespace}", pod=~"{deployment_name}-[a-z0-9]+-[a-z0-9]+", container!="", container!="POD"}})',
         'rps': f'sum(rate(nginx_ingress_controller_requests{{namespace="{namespace}", service="{service_name}"}}[5m]))',
         'replicas': f'kube_deployment_spec_replicas{{namespace="{namespace}", deployment="{deployment_name}"}}'
     }
