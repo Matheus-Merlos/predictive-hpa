@@ -1,7 +1,7 @@
 import logging as logger
 from datetime import datetime
 from xgboost import XGBRegressor
-import numpy as np
+from sklearn.exceptions import NotFittedError
 import time
 import math
 
@@ -62,7 +62,7 @@ def shadow_mode_controller():
             logger.info(f'{days_history} days detected. Forcing initial training...')
             all_data = data.get_all_historical_data()
 
-            model = train_model(transform_dataframe(all_data))
+            model = train_model(transform_dataframe(all_data, is_training=True))
         else:
             logger.info(f'Warmup mode active. Waiting history ({days_history}/7 days)')
 
@@ -88,7 +88,7 @@ def shadow_mode_controller():
             raw_current_line = time_window_df.tail(1)
             data.append_metric(raw_current_line)
 
-            transformed_df = transform_dataframe(time_window_df)
+            transformed_df = transform_dataframe(time_window_df, is_training=False)
 
             if transformed_df.empty:
                 logger.info('Waiting for cache to stabilize...')
@@ -109,13 +109,25 @@ def shadow_mode_controller():
                 logger.info(f'[WARMUP {days_history}/7d] Metrics: CPU={total_cpu:.2f} | Mem: {total_mem:.2f}GB | Current Replicas={current_replicas}')
             else:
                 current_X = current_state[['cpu_usage', 'mem_usage', 'rps', 'hour', 'day_week', 'cpu_lag_15m', 'rps_lag_15m', 'cpu_per_request', 'mem_per_request']]
-                xgboost_predict = model.predict(current_X)
-                xgboost_replicas = int(np.ceil(xgboost_predict[0]))
 
-                final_replica_count = max(reative_replicas, xgboost_replicas)
-                engine = "PREDICTIVE (XGBoost)" if xgboost_replicas >= reative_replicas else "REACTIVE FALLBACK"
+                try:
+                    xgboost_predict = model.predict(current_X)
+                    predicted_future_cpu = max(0.0, xgboost_predict[0])
+                    
+                    xgboost_replicas = calculate_reactive_hpa(
+                        cpu_usage_total=predicted_future_cpu, 
+                        mem_usage_total=total_mem,
+                        current_replicas=current_replicas, 
+                        pod_cpu_req=pod_cpu_req, 
+                        pod_mem_req=pod_mem_req
+                    )
 
-                logger.info(f'[PREDICTIVE]: XGBoost suggested: {xgboost_replicas} | Reactive calculated: {reative_replicas}')
+                    final_replica_count = max(reative_replicas, xgboost_replicas)
+                    engine = "PREDICTIVE (XGBoost)" if xgboost_replicas >= reative_replicas else "REACTIVE FALLBACK"
+                    
+                    logger.info(f'[PREDICTIVE]: Predicted CPU (+15m): {predicted_future_cpu:.2f} Cores -> Replicas Needed: {xgboost_replicas} | Reactive calculated: {reative_replicas}')
+                except NotFittedError:
+                    pass
             logger.info(f"-> Shadow Mode Suggestion: Define replicas to {final_replica_count} (Engine: {engine})")
 
             time.sleep(60)

@@ -3,8 +3,10 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 
 def train_model(full_df: DataFrame) -> DataFrame:
-    X = full_df[['cpu_usage', 'mem_usage', 'rps', 'hour', 'day_week', 'cpu_lag_15m', 'rps_lag_15m', 'cpu_per_request', 'mem_per_request']]
-    y = full_df['replicas']
+    train_df = full_df.dropna(subset=['target_cpu_15m_ahead'])
+
+    X = train_df[['cpu_usage', 'mem_usage', 'rps', 'hour', 'day_week', 'cpu_lag_15m', 'rps_lag_15m', 'cpu_per_request', 'mem_per_request']]
+    y = train_df['target_cpu_15m_ahead']
 
     X_benchmark, X_test, y_benchmark, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
