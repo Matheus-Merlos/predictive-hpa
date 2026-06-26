@@ -9,7 +9,7 @@ image:
   registry: ghcr.io/matheus-merlos
   repository: predictive-hpa-controller
   # A tag da imagem. Geralmente mapeada para a versão do release do GitHub.
-  tag: v0.0.0
+  tag: v0.0.3
   pullPolicy: IfNotPresent
 
 # Configurações da Aplicação Python (Injetadas via ConfigMap e EnvVars)
