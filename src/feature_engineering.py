@@ -19,6 +19,7 @@ def transform_dataframe(raw_df: DataFrame, is_training: bool = False) -> DataFra
 
     if is_training:
         df['target_cpu_15m_ahead'] = df['cpu_usage'].shift(-15)
-        df = df.dropna(subset=['target_cpu_15m_ahead'])
+        df['target_mem_15m_ahead'] = df['mem_usage'].shift(-15)
+        df = df.dropna(subset=['target_cpu_15m_ahead', 'target_mem_15m_ahead'])
     
     return df

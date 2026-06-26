@@ -112,11 +112,13 @@ def shadow_mode_controller():
 
                 try:
                     xgboost_predict = model.predict(current_X)
-                    predicted_future_cpu = max(0.0, xgboost_predict[0])
+                    predicted_future_cpu = max(0.0, xgboost_predict[0][0])
+                    predicted_future_mem_bytes = max(0.0, xgboost_predict[0][1])
+                    predicted_future_mem_gb = predicted_future_mem_bytes / (1024 ** 3)
                     
                     xgboost_replicas = calculate_reactive_hpa(
                         cpu_usage_total=predicted_future_cpu, 
-                        mem_usage_total=total_mem,
+                        mem_usage_total=predicted_future_mem_gb,
                         current_replicas=current_replicas, 
                         pod_cpu_req=pod_cpu_req, 
                         pod_mem_req=pod_mem_req
@@ -125,7 +127,7 @@ def shadow_mode_controller():
                     final_replica_count = max(reative_replicas, xgboost_replicas)
                     engine = "PREDICTIVE (XGBoost)" if xgboost_replicas >= reative_replicas else "REACTIVE FALLBACK"
                     
-                    logger.info(f'[PREDICTIVE]: Predicted CPU (+15m): {predicted_future_cpu:.2f} Cores -> Replicas Needed: {xgboost_replicas} | Reactive calculated: {reative_replicas}')
+                    logger.info(f'[PREDICTIVE]: Predicted CPU (+15m): {predicted_future_cpu:.2f} Cores | Predicted MEM (+15m): {predicted_future_mem_gb}Gb -> Replicas Needed: {xgboost_replicas} | Reactive calculated: {reative_replicas}')
                 except NotFittedError:
                     pass
             logger.info(f"-> Shadow Mode Suggestion: Define replicas to {final_replica_count} (Engine: {engine})")
