@@ -1,3 +1,9 @@
 .env
 venv
 __pycache__
+
+data/data.log
+data/data.duckdb
+data/sanitized-data.log
+data/analytics_data.csv
+data/venv
