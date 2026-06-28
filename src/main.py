@@ -74,7 +74,7 @@ def shadow_mode_controller():
                 if data.get_days_count() >= 7:
                     all_data = data.get_all_historical_data()
 
-                    model = train_model(transform_dataframe(all_data))
+                    model = train_model(transform_dataframe(all_data, is_training=True))
                 trained_today = True
             elif now.hour != 3:
                 trained_today = False
